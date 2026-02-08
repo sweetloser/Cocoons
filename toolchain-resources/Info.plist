@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Identifier</key>
+    <string>org.llvm.cocoons</string>
+    <key>Name</key>
+    <string>Cocoons Toolchain</string>
+    <key>Description</key>
+    <string>Custom LLVM</string>
+    <key>Version</key>
+    <string>1.0</string>
+    <key>CompatibilityVersion</key>
+    <integer>2</integer>
+    <key>DefaultProperties</key>
+    <dict>
+        <key>CLANG_VERSION</key>
+        <string>18.1.0</string> <key>GCC_VERSION</key>
+        <string>com.apple.compilers.llvm.clang.1_0</string>
+    </dict>
+    <key>OverrideProperties</key>
+    <dict>
+        <key>IDEToolchainSettings_UseExternalBuildSystem</key>
+        <true/>
+    </dict>
+</dict>
+</plist>
