@@ -147,7 +147,9 @@
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
 
 //  导入头文件
-#include "llvm/Transforms/Cocoons/StringObfuscation.h"
+#include "llvm/Transforms/Cocoons/StringObfuscationPass.h"
+#include "llvm/Transforms/Cocoons/SubstitutionPass.h"
+#include <utility>
 
 using namespace llvm;
 
@@ -1452,14 +1454,21 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   if (RunPartialInlining)
     MPM.addPass(PartialInlinerPass());
 
-    /* =================================== Module Pass ================================== */
+    /* =========================== Module & Function Pass =========================== */
     // 这里的逻辑：如果命令行带了 -enable-str-obf，且优化级别不是 O0
   if (Level != OptimizationLevel::O0) {
-    if (StringObfuscationPass::isEnabled()) {
-      MPM.addPass(StringObfuscationPass());
+      FunctionPassManager CocoonsFPM;
+      // string obfuscation pass.
+    if (cocoons::StringObfuscationPass::isEnabled()) {
+      MPM.addPass(cocoons::StringObfuscationPass());
     }
+    // substiution pass.
+    if (cocoons::SubstitutionPass::isEnabled()) {
+      CocoonsFPM.addPass(cocoons::SubstitutionPass());
+    }
+    MPM.addPass(createModuleToFunctionPassAdaptor(std::move(CocoonsFPM)));
   }
-  /* =================================== Module Pass ================================== */
+  /* =========================== Module & Function Pass =========================== */
 
   // Remove avail extern fns and globals definitions since we aren't compiling
   // an object file for later LTO. For LTO we want to preserve these so they

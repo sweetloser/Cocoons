@@ -1,4 +1,4 @@
-#include "llvm/Transforms/Cocoons/StringObfuscation.h"
+#include "llvm/Transforms/Cocoons/StringObfuscationPass.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Analysis.h"
 #include "llvm/IR/Constant.h"
@@ -19,12 +19,12 @@
 #include <cstdint>
 #include <vector>
 
-using namespace llvm;
+namespace cocoons {
 
 // 定义开关
 // 这里的字符串 "enable-str-obf" 就是你将在命令行里敲的参数名
 static cl::opt<bool> EnableStrObf(
-    "enable-str-obf", 
+    "cocoons-enable-str", 
     cl::init(false), 
     cl::desc("Enable String Obfuscation for iOS"));
 
@@ -236,3 +236,5 @@ Function* StringObfuscationPass::createDecodeHelper(Module &M) {
     Helper->setLinkage(GlobalVariable::InternalLinkage);
     return Helper;
 }
+
+} // namespace cocoons

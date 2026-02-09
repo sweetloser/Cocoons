@@ -1,12 +1,14 @@
-#ifndef LLVM_TRANSFORMS_COCOONS_STRINGOBFUSCATION_H
-#define LLVM_TRANSFORMS_COCOONS_STRINGOBFUSCATION_H
+#ifndef LLVM_TRANSFORMS_COCOONS_STRINGOBFUSCATIONPASS_H
+#define LLVM_TRANSFORMS_COCOONS_STRINGOBFUSCATIONPASS_H
 
 #include "llvm/IR/PassManager.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <cstdint>
 #include <vector>
 
-namespace llvm {
+using namespace llvm;
+
+namespace cocoons {
 
 class StringObfuscationPass : public PassInfoMixin<StringObfuscationPass> {
 public:
@@ -26,7 +28,6 @@ private:
     void createMainDecryptFunc(Module &M, std::vector<ObfuscateEntry> &ObfList);
     void encryptRealData(GlobalVariable *TargetGV, std::vector<ObfuscateEntry> &ObfList, Module &M);
 };
-
-} // namespace llvm
+} // namespace cocoons
 
 #endif

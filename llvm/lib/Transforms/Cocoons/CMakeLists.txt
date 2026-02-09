@@ -1,6 +1,7 @@
 # 定义一个 LLVM 组件库
 add_llvm_component_library(LLVMCocoons
-  StringObfuscation.cpp
+  StringObfuscationPass.cpp
+  SubstitutionPass.cpp
 
   # 声明对应的头文件目录
   ADDITIONAL_HEADER_DIRS
