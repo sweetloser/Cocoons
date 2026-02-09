@@ -21,7 +21,7 @@
 ## <a id="功能"></a> 功能
 
 - [x] C/OC字符串混淆
-- [ ] 指令替换
+- [x] 指令替换
 - [ ] 控制流平坦化
 - [ ] 反调试
 
@@ -50,7 +50,7 @@ $ ./build.sh
 
    - #### 字符串加密
 
-   a. 点击 Build Settings -> Other C Flags，输入"-mllvm"和"-enable-str-obf"。
+   a. 点击 Build Settings -> Other C Flags，输入"-mllvm"和"-cocoons-enable-str"；
 
    b. 在需要混淆的字符串前加上`__attribute__((annotate("obfuscate")))`：
 
@@ -59,6 +59,10 @@ $ ./build.sh
    __attribute__((annotate("obfuscate"))) const char *c_const_tring = "C String Hello World!";
    __attribute__((annotate("obfuscate"))) NSString *ocConstString  = @"OC String Hello World!";
    ```
+
+   - #### 指令替换
+
+   a. 点击 `Build Settings` -> `Other C Flags`, 输入"-mllvm"和"-cocoons-enable-sub"即可；
 
 3. ### 正常编译即可；
 
@@ -84,9 +88,17 @@ $ ./build.sh
 
 ## <a id="演示效果"></a> 演示效果
 
+- #### 字符串混淆
+
+|                            混淆前                            |                            混淆后                            |      |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | ---- |
+| <img src="https://github.com/sweetloser/PictureMaterial/blob/main/Cocoons/README/Effect-StringObfuscation-Before.png?raw=true"> | <img src="https://github.com/sweetloser/PictureMaterial/blob/main/Cocoons/README/Effect-StringObfuscation-After.png?raw=true"> |      |
+
+- #### 指令替换
+
 |                            混淆前                            |                            混淆后                            |
 | :----------------------------------------------------------: | :----------------------------------------------------------: |
-| <img src="https://github.com/sweetloser/PictureMaterial/blob/main/Cocoons/README/Effect-StringObfuscation-Before.png?raw=true"> | <img src="https://github.com/sweetloser/PictureMaterial/blob/main/Cocoons/README/Effect-StringObfuscation-After.png?raw=true"> |
+| <img src="https://github.com/sweetloser/PictureMaterial/blob/main/Cocoons/README/Effect-Substitution-Before.png?raw=true"> | <img src="https://github.com/sweetloser/PictureMaterial/blob/main/Cocoons/README/Effect-Substitution-After.png?raw=true"> |
 
 
 
