@@ -3,7 +3,6 @@
 
 ## 目录
 * [功能](#功能)
-* [要求](#要求)
 * [安装](#安装)
 * [更新记录](#更新记录)
 * [演示效果](#演示效果)
@@ -39,17 +38,19 @@ $ ./build.sh
 
 2. ### 加入编译参数
 
-点击 Build Settings -> Other C Flags，输入"-mllvm"和"-enable-str-obf"。
+   - #### 字符串加密
 
-3. ### 在需要混淆的字符串前加上`__attribute__((annotate("obfuscate")))`：
+   a. 点击 Build Settings -> Other C Flags，输入"-mllvm"和"-enable-str-obf"。
 
-```objective-c
-__attribute__((annotate("obfuscate"))) const char c_const_array[] = "Hello World!";
-__attribute__((annotate("obfuscate"))) const char *c_const_tring = "Hello World!";
-__attribute__((annotate("obfuscate"))) NSString *ocConstString  = @"Hello World!";
-```
+   b. 在需要混淆的字符串前加上`__attribute__((annotate("obfuscate")))`：
 
-4. ### 正常编译即可；
+   ```objective-c
+   __attribute__((annotate("obfuscate"))) const char c_const_array[] = "C Array Hello World!";
+   __attribute__((annotate("obfuscate"))) const char *c_const_tring = "C String Hello World!";
+   __attribute__((annotate("obfuscate"))) NSString *ocConstString  = @"OC String Hello World!";
+   ```
+
+3. ### 正常编译即可；
 
 ## <a id="更新记录"></a> 更新日志
 
@@ -65,9 +66,9 @@ __attribute__((annotate("obfuscate"))) NSString *ocConstString  = @"Hello World!
 <details id="历史记录">
   <summary><strong>历史记录</strong></summary>
 
-| 版本                         | 发布时间   | LLVM   |
-| ---------------------------- | ---------- | ------ |
-| [v1.0.0](https://github.com) | 2026-02-09 | 21.1.8 |
+| 版本                                                         | 发布时间   | LLVM   |
+| ------------------------------------------------------------ | ---------- | ------ |
+| [v1.0.0](https://github.com/sweetloser/Cocoons/blob/main/Documentation/RELEASE_NOTE_CN.md#100) | 2026-02-09 | 21.1.8 |
 
 </details>
 
