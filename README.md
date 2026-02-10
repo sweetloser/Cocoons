@@ -71,8 +71,8 @@ $ ./build.sh
 <details open id="最近更新">
   <summary><strong>最近更新</strong></summary>
 
-| 版本  | 发布时间   | LLVM   |
-| ----- | ---------- | ------ |
+| 版本  |  发布时间  |  LLVM  |
+| :---: | :--------: | :----: |
 | 1.0.0 | 2026-02-09 | 21.1.8 |
 
 </details>
@@ -80,9 +80,10 @@ $ ./build.sh
 <details id="历史记录">
   <summary><strong>历史记录</strong></summary>
 
-| 版本                                                         | 发布时间   | LLVM   |
-| ------------------------------------------------------------ | ---------- | ------ |
+|                             版本                             |  发布时间  |  LLVM  |
+| :----------------------------------------------------------: | :--------: | :----: |
 | [v1.0.0](https://github.com/sweetloser/Cocoons/blob/main/Documentation/RELEASE_NOTE_CN.md#100) | 2026-02-09 | 21.1.8 |
+| [v1.0.1](https://github.com/sweetloser/Cocoons/blob/main/Documentation/RELEASE_NOTE_CN.md#101) | 2026-02-10 | 21.1.8 |
 
 </details>
 

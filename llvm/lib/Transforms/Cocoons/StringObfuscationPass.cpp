@@ -112,8 +112,8 @@ void StringObfuscationPass::processVariable(GlobalVariable *GV, std::vector<Glob
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V)) {
                 V = CE->getOperand(0)->stripPointerCasts();
             }
-            if (GlobalVariable *nextGV = dyn_cast<GlobalVariable>(V)) {
-                processVariable(nextGV, Targets, M);
+            if (GlobalVariable *NextGV = dyn_cast<GlobalVariable>(V)) {
+                processVariable(NextGV, Targets, M);
             }
         }
         return;
