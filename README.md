@@ -73,7 +73,7 @@ $ ./build.sh
 
 | 版本  |  发布时间  |  LLVM  |
 | :---: | :--------: | :----: |
-| 1.0.0 | 2026-02-09 | 21.1.8 |
+| 1.0.1 | 2026-02-10 | 21.1.8 |
 
 </details>
 
@@ -82,8 +82,8 @@ $ ./build.sh
 
 |                             版本                             |  发布时间  |  LLVM  |
 | :----------------------------------------------------------: | :--------: | :----: |
-| [v1.0.0](https://github.com/sweetloser/Cocoons/blob/main/Documentation/RELEASE_NOTE_CN.md#100) | 2026-02-09 | 21.1.8 |
 | [v1.0.1](https://github.com/sweetloser/Cocoons/blob/main/Documentation/RELEASE_NOTE_CN.md#101) | 2026-02-10 | 21.1.8 |
+| [v1.0.0](https://github.com/sweetloser/Cocoons/blob/main/Documentation/RELEASE_NOTE_CN.md#100) | 2026-02-09 | 21.1.8 |
 
 </details>
 
