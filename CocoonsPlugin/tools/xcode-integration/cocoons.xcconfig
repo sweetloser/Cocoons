@@ -1,0 +1,25 @@
+// ============================================================
+// Cocoons: Xcode xcconfig 接入示例
+// 用法：在 Xcode -> Project/Target -> Build Settings ->
+//       "Based on Configuration File" 选择此文件
+//       或在 Podfile 中用 xcconfig 引用
+// ============================================================
+
+// 请根据实际 CocoonsPlugin 路径修改
+COCOONS_PLUGIN_DIR = $(SRCROOT)/CocoonsPlugin/dist
+
+// Release 默认开启所有混淆；Debug 默认不开（加速编译）
+COCOONS_PLUGIN_FLAGS_RELEASE = -fpass-plugin=$(COCOONS_PLUGIN_DIR)/libCocoonsPlugin.dylib \
+    -mllvm -cocoons-enable-str \
+    -mllvm -cocoons-enable-sub \
+    -mllvm -cocoons-sub-loop=2 \
+    -mllvm -cocoons-enable-fla
+
+COCOONS_PLUGIN_FLAGS_DEBUG =
+
+// 拼接到 OTHER_CFLAGS（注意 $(inherited) 放在最前，避免覆盖工程原有配置）
+OTHER_CFLAGS = $(inherited) $(COCOONS_PLUGIN_FLAGS_$(CONFIGURATION))
+
+// Swift 混编时，需要通过 -Xcc 把 -fpass-plugin 传给 clang importer
+OTHER_SWIFT_FLAGS = $(inherited) \
+    -Xcc "$(COCOONS_PLUGIN_FLAGS_$(CONFIGURATION))"
