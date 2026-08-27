@@ -1,0 +1,56 @@
+{
+  "_comment_": "Cocoons v1.2.0 示例配置文件。使用方法：拷贝到你的项目根目录（和 .xcodeproj / WORKSPACE 同级）并重命名为 .cocoons.json。注释键 _comment_ 会被 Config 解析器忽略，不影响实际字段。所有布尔除了 true/false，还支持 \"on\" / \"off\" / \"1\" / \"0\"；三态开关额外支持 \"annotation\" 表示只对源码里加了对应 __attribute__((annotate(\"cocoons:*\"))) 注解的目标生效。3 层优先级（从高到低）： 源码注解 > 环境变量 COCOONS_* > 本文件。",
+  "_defaults_to_v1_1_behavior_": "下面默认值刻意保持和 Cocoons v1.1.0 行为一致（Str/Sub/Fla 默认开，Sub loop=1，Anti-Debug 默认关）。不设置任何配置的前提下，clang -fpass-plugin=libCocoonsPlugin.dylib 的输出与 v1.1.0 二进制兼容。",
+
+  "enable_str": "on",
+  "_enable_str_comment": "字符串混淆。值: on(默认, 与 v1.1 兼容) / off / \"annotation\"。annotation 模式下只加密带有 __attribute__((annotate(\"obfuscate\") 或 annotate(\"cocoons:str\"))) 的全局 C/NSString 变量。",
+
+  "enable_sub": "on",
+  "_enable_sub_comment": "指令替换 (Add/Sub/And/Or/Xor 5 元运算的随机等价变形)。值: on / off / \"annotation\"。",
+
+  "sub_loop": 1,
+  "_sub_loop_comment": "Sub 的多轮递归膨胀深度 (整数 1-5, 超过会被 clamp 到 5)。Release 建议 2~3；值>5 体积和编译时间会陡增但理解成本收益递减。",
+
+  "enable_fla": "on",
+  "_enable_fla_comment": "控制流平坦化。值: on / off / \"annotation\"。",
+
+  "fla_probability": 1.0,
+  "_fla_probability_comment": "平坦化概率 [0.0, 1.0]，每个通过 fla_min/max_bbs 阈值的函数按此概率抛硬币决定是否 flatten。0 = 完全不开；1 = 所有符合阈值的函数都 flatten；0.5 适合在大工程里做 A/B 对比上线。",
+
+  "fla_min_bbs": 2,
+  "_fla_min_bbs_comment": "小于等于这个 BB 数的函数跳过平坦化。像 getter/setter / 1~BB 的小工具函数 flatten 是负收益。",
+
+  "fla_max_bbs": 4096,
+  "_fla_max_bbs_comment": "大于这个 BB 数的巨型函数跳过平坦化，避免编译器 OOM / 单文件编译 30s+。",
+
+  "enable_anti_debug": false,
+  "_enable_anti_debug_comment": "反调试注入。默认关，防止影响本地调试 / App Store 审核被拒 (ptrace / entitlement 检查可能被审核员扫描到)。需要上架时再打开，或者在 Release scheme 里用环境变量 COCOONS_ENABLE_ANTI_DEBUG=1 开。annotation 模式下只在显式 annotate(\"cocoons:anti_debug\") 时才开，不推荐 (反调试应该全局开而不是局部开)。",
+
+  "anti_ptrace": true,
+  "_anti_ptrace_comment": "精细开关：关闭则不注入 ptrace(PTRACE_DENY_ATTACH=31,0,0,0) syscall。如果你的应用已经在 main.m 里自己调了 ptrace，可以关这个避免重复。",
+
+  "anti_sysctl": true,
+  "_anti_sysctl_comment": "精细开关：关闭则不注入 sysctl({CTL_KERN,KERN_PROC,KERN_PROC_PID,getpid()}) 检查 kp_proc.p_flag & P_TRACED(0x800)。",
+
+  "anti_dyld_hook": true,
+  "_anti_dyld_hook_comment": "精细开关：关闭则不注入 _dyld_image_count() / _dyld_get_image_name() 循环扫描 frida-agent / cycript / substitute 动态库名。",
+
+  "anti_entitlement": true,
+  "_anti_entitlement_comment": "精细开关：关闭则不注入 SecTaskCopyValueForEntitlement(\"com.apple.security.get-task-allow\") 检查调试签名。该检查依赖 Security.framework (Apple App 自动链接，一般无需额外 -framework Security)。",
+
+  "skip_files": [
+    "Pods/**/*.m",
+    "Pods/**/*.mm",
+    "**/Vendor/**/*.c",
+    "**/Vendor/**/*.cc"
+  ],
+  "_skip_files_comment": "按文件路径 glob (支持 ** / * / ?) 匹配源码文件绝对路径。匹配到的文件里的所有函数/字符串都完全不混淆。默认值样例里跳过 Pods 和 Vendor 目录的第三方代码，避免改出不兼容的问题 (例如宏展开后的热循环被 Sub 膨胀 10 倍会导致性能回退)。",
+
+  "skip_functions": [
+    "*_debug_*",
+    "objc_msgSend*",
+    "-[NSObject(XX) *]",
+    "*_unobfuscate_this_*"
+  ],
+  "_skip_functions_comment": "按函数名 glob (支持 ** / * / ?) 匹配。对 ObjC 方法，IR 里的名字就是 \"-[Class(Cat) method:]\" 形式 (含方括号和空格，所以写 glob 时要用 \"-[MyClass *]\" 这样的模式匹配)。"
+}

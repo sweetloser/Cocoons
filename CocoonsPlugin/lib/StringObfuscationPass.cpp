@@ -1,4 +1,5 @@
 #include "cocoons/StringObfuscationPass.h"
+#include "cocoons/Config.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Analysis.h"
 #include "llvm/IR/Constant.h"
@@ -28,22 +29,15 @@ using namespace llvm;
 
 namespace cocoons {
 
-static bool envBool(const char *Name, bool Default) {
-    const char *V = std::getenv(Name);
-    if (!V) return Default;
-    return StringRef(V).equals_insensitive("1")
-        || StringRef(V).equals_insensitive("true")
-        || StringRef(V).equals_insensitive("on")
-        || StringRef(V).equals_insensitive("yes");
-}
-
-static bool EnableStrObf = envBool("COCOONS_ENABLE_STR", true);
-
 bool StringObfuscationPass::isEnabled() {
-    return EnableStrObf;
+    const Config &C = Config::get();
+    // pass-level on/off (used by plugin registration)
+    return C.Str != EnableMode::DefaultOff || C.SkipFileGlobs.size() || C.SkipFuncNames.size();
 }
 
 PreservedAnalyses StringObfuscationPass::run(Module &M, ModuleAnalysisManager &AM) {
+    Config &Cfg = Config::get();
+
     GlobalVariable *AnnoGV = M.getGlobalVariable("llvm.global.annotations");
     if (!AnnoGV) { return PreservedAnalyses::all(); }
 
@@ -63,24 +57,26 @@ PreservedAnalyses StringObfuscationPass::run(Module &M, ModuleAnalysisManager &A
             if (!AnnoData) { continue; }
 
             StringRef Annotation = AnnoData->getAsString();
-            if (Annotation.starts_with("obfuscate")) {
-                processVariable(TargetGV, Targets, Visited, M);
+            if (!(Annotation.starts_with("obfuscate") || Annotation.starts_with("cocoons:str"))) {
+                continue;
             }
+            // Apply cocoons:no + skip_files/functions to the string global.
+            if (!Cfg.shouldRunStr(TargetGV, {})) {
+                continue;
+            }
+            processVariable(TargetGV, Targets, Visited, M);
         }
     }
     if (Targets.empty()) {
-        errs() << ">>> [Cocoons] 没有可混淆的字符串。\n";
         return PreservedAnalyses::all();
     }
 
-    std::random_device RD;
-    std::default_random_engine Engine(RD());
     std::uniform_int_distribution<int> Dist(1, 255);
     errs() << ">>> [Cocoons] 待加密字符串: " << Targets.size() << "\n";
     for (GlobalVariable *GV : Targets) {
         ConstantDataSequential *CDS = cast<ConstantDataSequential>(GV->getInitializer());
         uint32_t Len = CDS->getNumElements() * CDS->getElementByteSize();
-        uint8_t BaseKey = (uint8_t)Dist(Engine);
+        uint8_t BaseKey = (uint8_t)Dist(Cfg.Rng);
         if (encryptRealData(M, GV, BaseKey)) {
             injectLocalDecryption(M, GV, Len, BaseKey);
         }

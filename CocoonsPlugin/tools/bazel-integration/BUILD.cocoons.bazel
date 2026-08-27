@@ -1,0 +1,47 @@
+# =====================================================================
+# BUILD.bazel — 示例：把 CocoonsPlugin 暴露给上层 BUILD 规则用
+# ---------------------------------------------------------------------
+# 用法：
+#   bazel build //cocoons-plugin:plugin   # 产出 libCocoonsPlugin.dylib
+#   在 ios_application / cc_binary copts 里用:
+#       copts = [
+#           "-fpass-plugin=$(location //cocoons-plugin:plugin)",
+#           # ... 在编译命令中通过 env var 传 COCOONS_* 开关
+#       ],
+#       data = ["//cocoons-plugin:plugin"],
+# =====================================================================
+
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import")
+
+# --- 方式一: 把预先构建好的 libCocoonsPlugin.dylib (本地 brew llvm@21 构建)
+#     作为 import 给下游直接用. 当你不想把插件构建流程放进 Bazel 时推荐.
+cc_import(
+    name = "plugin_prebuilt",
+    hdrs = [],
+    shared_library = "libCocoonsPlugin.dylib",  # 相对 BUILD 文件放在 tools/bazel-integration/ 下的话,改成 //path/to/dist/libCocoonsPlugin.dylib
+    visibility = ["//visibility:public"],
+)
+
+# --- 方式二: 在 Bazel 内部从源码构建 CocoonsPlugin (需要 llvm@21 toolchain).
+# 本片段仅展示链接产物, CMake 的 add_llvm_pass_plugin 功能要在 bazel 内用
+# cc_common.compile + cc_common.create_linking_context 自己实现, 也可以
+# 在 genrule 里调 cmake --build:
+genrule(
+    name = "build_plugin_with_cmake",
+    srcs = glob([
+        "CocoonsPlugin/include/**/*.h",
+        "CocoonsPlugin/lib/**/*.cpp",
+        "CocoonsPlugin/CMakeLists.txt",
+    ]),
+    outs = ["libCocoonsPlugin.dylib"],
+    cmd = """
+      set -e
+      export PATH="$(LLVM_BIN):$$PATH"
+      mkdir -p $(@D)/build
+      cmake -S CocoonsPlugin -B $(@D)/build -DLLVM_DIR=$(LLVM_DIR) -DCMAKE_BUILD_TYPE=Release
+      cmake --build $(@D)/build -j
+      cp $(@D)/build/dist/libCocoonsPlugin.dylib $@
+    """,
+    toolchains = ["@bazel_tools//tools/cpp:current_cc_toolchain"],
+    visibility = ["//visibility:public"],
+)

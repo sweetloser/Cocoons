@@ -65,28 +65,35 @@ def _find_clang() -> Tuple[str, str]:
 
 
 def _parse_extra_flags(argv: List[str]) -> Tuple[List[str], List[str]]:
-    """识别 --enable-str 等简化参数，剥离并返回 (cocoons_flags, remain_argv)"""
-    cocoons_flags: List[str] = []
+    """识别 --enable-str 等简化参数，剥离并注入 COCOONS_* 环境变量。"""
     remain: List[str] = []
     i = 0
     while i < len(argv):
         a = argv[i]
         consumed = True
         if a == "--enable-str":
-            cocoons_flags += ["-mllvm", "-cocoons-enable-str"]
+            os.environ["COCOONS_ENABLE_STR"] = "1"
         elif a == "--enable-sub":
-            cocoons_flags += ["-mllvm", "-cocoons-enable-sub"]
+            os.environ["COCOONS_ENABLE_SUB"] = "1"
         elif a.startswith("--sub-loop="):
             n = a.split("=", 1)[1]
-            cocoons_flags += ["-mllvm", f"-cocoons-sub-loop={n}"]
+            os.environ["COCOONS_SUB_LOOP"] = n
         elif a == "--enable-fla":
-            cocoons_flags += ["-mllvm", "-cocoons-enable-fla"]
+            os.environ["COCOONS_ENABLE_FLA"] = "1"
         elif a == "--enable-all":
-            cocoons_flags += [
-                "-mllvm", "-cocoons-enable-str",
-                "-mllvm", "-cocoons-enable-sub",
-                "-mllvm", "-cocoons-enable-fla",
-            ]
+            os.environ["COCOONS_ENABLE_STR"] = "1"
+            os.environ["COCOONS_ENABLE_SUB"] = "1"
+            os.environ["COCOONS_ENABLE_FLA"] = "1"
+        elif a.startswith("--config="):
+            os.environ["COCOONS_CONFIG"] = a.split("=", 1)[1]
+        elif a == "--disable-str":
+            os.environ["COCOONS_ENABLE_STR"] = "0"
+        elif a == "--disable-sub":
+            os.environ["COCOONS_ENABLE_SUB"] = "0"
+        elif a == "--disable-fla":
+            os.environ["COCOONS_ENABLE_FLA"] = "0"
+        elif a == "--verbose":
+            os.environ["COCOONS_VERBOSE"] = "1"
         elif a == "--":
             remain.extend(argv[i + 1 :])
             break
@@ -97,14 +104,14 @@ def _parse_extra_flags(argv: List[str]) -> Tuple[List[str], List[str]]:
             i += 1
         else:
             i += 1
-    return cocoons_flags, remain
+    return [], remain
 
 
 def main() -> int:
     invoked_as = Path(sys.argv[0]).name
     argv = sys.argv[1:]
 
-    cocoons_flags, argv = _parse_extra_flags(argv)
+    _, argv = _parse_extra_flags(argv)
 
     plugin_dir = _find_plugin_dir()
     if plugin_dir is None:
@@ -121,10 +128,11 @@ def main() -> int:
 
     cmd = [driver]
     cmd.append(f"-fpass-plugin={plugin_path}")
-    cmd.extend(cocoons_flags)
     cmd.extend(argv)
 
     if os.environ.get("COCOONS_VERBOSE", "0") == "1":
+        envs = [f"{k}={os.environ[k]}" for k in sorted(os.environ) if k.startswith("COCOONS_")]
+        print(f"[cocoons-clang] ENV:  {' '.join(envs)}", file=sys.stderr)
         print(f"[cocoons-clang] EXEC: {' '.join(cmd)}", file=sys.stderr)
 
     return subprocess.call(cmd, env=os.environ)

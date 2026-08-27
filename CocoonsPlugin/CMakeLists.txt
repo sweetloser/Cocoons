@@ -54,9 +54,11 @@ include_directories(
 
 add_llvm_pass_plugin(CocoonsPlugin
     lib/CocoonsPlugin.cpp
+    lib/Config.cpp
     lib/StringObfuscationPass.cpp
     lib/SubstitutionPass.cpp
     lib/FlatteningPass.cpp
+    lib/AntiDebuggingPass.cpp
 )
 
 target_include_directories(CocoonsPlugin PRIVATE

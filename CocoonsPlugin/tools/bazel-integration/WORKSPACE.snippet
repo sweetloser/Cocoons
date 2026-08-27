@@ -1,0 +1,31 @@
+# =====================================================================
+# WORKSPACE — 拉取 llvm/toolchain 依赖（示例，按需取用）
+# =====================================================================
+
+# 1) rules_cc + rules_apple (iOS/macOS 项目必备，已有就不要重复写)
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# rules_cc (官方 CC 规则)
+http_archive(
+    name = "rules_cc",
+    urls = ["https://github.com/bazelbuild/rules_cc/releases/download/0.0.17/rules_cc-0.0.17.tar.gz"],
+    sha256 = "abc123...",
+)
+
+# 2) 把 CocoonsPlugin 作为本地 workspace 依赖进来：
+local_repository(
+    name = "cocoons_plugin",
+    # 你把 Cocoons (含 CocoonsPlugin/) clone 下来的相对路径
+    path = "../Cocoons",
+)
+
+# 3) 编译时要注入 COCOONS_* 环境变量 —— 在目标 Bazel (非 --action_env
+# 场景，推荐在 .bazelrc 中写：
+#   build --action_env=COCOONS_ENABLE_STR=1
+#   build --action_env=COCOONS_ENABLE_SUB=1
+#   build --action_env=COCOONS_SUB_LOOP=2
+#   build --action_env=COCOONS_ENABLE_FLA=1
+#   build --action_env=COCOONS_ENABLE_ANTI_DEBUG=0
+#   # 如果用了 JSON 配置文件：
+#   build --action_env=COCOONS_CONFIG=/path/to/your/.cocoons.json
+# 或者用下面 cocoons_copts.bzl 里封装的辅助函数（推荐）。

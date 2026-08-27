@@ -1,21 +1,30 @@
 // ============================================================
-// Cocoons: Xcode xcconfig 接入示例
-// 用法：在 Xcode -> Project/Target -> Build Settings ->
-//       "Based on Configuration File" 选择此文件
-//       或在 Podfile 中用 xcconfig 引用
+// Cocoons: Xcode xcconfig 接入示例 (v1.2.0+)
+// ------------------------------------------------------------
+// 用法：
+//   1) 在 Xcode -> Project/Target -> Build Settings ->
+//      "Based on Configuration File" 选择此文件
+//      或在 Podfile 中用 xcconfig 引用。
+//   2) 在 Targets → Build Phases → + New Run Script Phase，
+//      在 "Compile Sources" 之前插入脚本 (见 xcode-integration/README.md
+//      或 Podfile.cocoons.example.rb 中的脚本) 来 export COCOONS_*
+//      环境变量。
+//      * 不用 Run Script 也行：把 $(SRCROOT)/.cocoons.json 放到项目根
+//        目录（见 RELEASE_NOTE_CN.md 说明），Config 单例自动加载。
+//
+// v1.2.0 变化 - 不再用 `-mllvm -cocoons-*`：
+//   -fpass-plugin 加载插件在 clang 解析 -mllvm 之后，此时 cl::opt 尚未
+//   注册，导致 -mllvm 选项报 "Unknown command line argument"。
+//   Cocoons 现在统一通过环境变量 (或 .cocoons.json) 传开关。
 // ============================================================
 
 // 请根据实际 CocoonsPlugin 路径修改
 COCOONS_PLUGIN_DIR = $(SRCROOT)/CocoonsPlugin/dist
 
-// Release 默认开启所有混淆；Debug 默认不开（加速编译）
-COCOONS_PLUGIN_FLAGS_RELEASE = -fpass-plugin=$(COCOONS_PLUGIN_DIR)/libCocoonsPlugin.dylib \
-    -mllvm -cocoons-enable-str \
-    -mllvm -cocoons-enable-sub \
-    -mllvm -cocoons-sub-loop=2 \
-    -mllvm -cocoons-enable-fla
-
-COCOONS_PLUGIN_FLAGS_DEBUG =
+// Release 默认开所有混淆 (env var COCOONS_* 在 Run Script 中设)；
+// Debug 不开，加速编译。
+COCOONS_PLUGIN_FLAGS_RELEASE = -fpass-plugin=$(COCOONS_PLUGIN_DIR)/libCocoonsPlugin.dylib
+COCOONS_PLUGIN_FLAGS_DEBUG   =
 
 // 拼接到 OTHER_CFLAGS（注意 $(inherited) 放在最前，避免覆盖工程原有配置）
 OTHER_CFLAGS = $(inherited) $(COCOONS_PLUGIN_FLAGS_$(CONFIGURATION))

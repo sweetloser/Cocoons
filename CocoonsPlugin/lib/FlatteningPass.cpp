@@ -1,4 +1,5 @@
 #include "cocoons/FlatteningPass.h"
+#include "cocoons/Config.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/PassManager.h"
@@ -14,27 +15,15 @@ using namespace llvm;
 
 namespace cocoons {
 
-static bool envBool(const char *Name, bool Default) {
-    const char *V = std::getenv(Name);
-    if (!V) return Default;
-    return StringRef(V).equals_insensitive("1")
-        || StringRef(V).equals_insensitive("true")
-        || StringRef(V).equals_insensitive("on")
-        || StringRef(V).equals_insensitive("yes");
-}
-
-static bool EnableFlattening = envBool("COCOONS_ENABLE_FLA", true);
-
 bool FlatteningPass::isEnabled() {
-    return EnableFlattening;
+    const Config &C = Config::get();
+    return C.Fla != EnableMode::DefaultOff;
 }
 
 PreservedAnalyses FlatteningPass::run(Function &F, FunctionAnalysisManager &AM) {
-    if (F.size() <= 1 || F.hasFnAttribute(Attribute::OptimizeNone)) {
-        return PreservedAnalyses::all();
-    }
-
-    if (F.getMetadata("cocoons_protected")) {
+    Config &Cfg = Config::get();
+    unsigned BC = F.size();
+    if (!Cfg.shouldRunFla(F, {}, BC)) {
         return PreservedAnalyses::all();
     }
 
@@ -81,12 +70,11 @@ bool FlatteningPass::flatten(Function &F) {
         OrigBBs.insert(OrigBBs.begin(), NewBB);
     }
 
-    std::map<BasicBlock *, uint32_t> BBKeys;
-    std::random_device RD;
-    std::mt19937 Gen(RD());
+    Config &Cfg = Config::get();
     std::uniform_int_distribution<uint32_t> Dist;
+    std::map<BasicBlock *, uint32_t> BBKeys;
     for (BasicBlock *BB : OrigBBs) {
-        BBKeys[BB] = Dist(Gen);
+        BBKeys[BB] = Dist(Cfg.Rng);
     }
 
     BasicBlock *LoopHeader = BasicBlock::Create(F.getContext(), "fla.header", &F, EntryBB->getNextNode());

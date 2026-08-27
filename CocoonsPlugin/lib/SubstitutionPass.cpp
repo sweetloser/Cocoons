@@ -1,4 +1,5 @@
 #include "cocoons/SubstitutionPass.h"
+#include "cocoons/Config.h"
 #include "llvm/IR/Analysis.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
@@ -15,38 +16,20 @@ using namespace llvm;
 
 namespace cocoons {
 
-static bool envBool(const char *Name, bool Default) {
-    const char *V = std::getenv(Name);
-    if (!V) return Default;
-    return StringRef(V).equals_insensitive("1")
-        || StringRef(V).equals_insensitive("true")
-        || StringRef(V).equals_insensitive("on")
-        || StringRef(V).equals_insensitive("yes");
+bool SubstitutionPass::isEnabled() {
+    const Config &C = Config::get();
+    return C.Sub != EnableMode::DefaultOff;
 }
-
-static int envInt(const char *Name, int Default) {
-    const char *V = std::getenv(Name);
-    if (!V) return Default;
-    int N = Default;
-    if (StringRef(V).getAsInteger(10, N)) return Default;
-    return N < 1 ? 1 : N;
-}
-
-static bool EnableSub = envBool("COCOONS_ENABLE_SUB", true);
-static int  SubLoop   = envInt("COCOONS_SUB_LOOP", 1);
-
-static std::random_device RD;
-static std::mt19937 Gen(RD());
 
 PreservedAnalyses SubstitutionPass::run(Function &F, FunctionAnalysisManager &AM) {
-    if (F.hasFnAttribute(Attribute::OptimizeNone)) {
-        return PreservedAnalyses::all();
-    }
-    if (F.getMetadata("cocoons_protected")) {
+    Config &Cfg = Config::get();
+    if (!Cfg.shouldRunSub(F, {})) {
         return PreservedAnalyses::all();
     }
 
     bool Changed = false;
+    int SubLoop = std::max(1, Cfg.SubLoop);
+    std::uniform_int_distribution<int> Uni(0, 1000000000);
 
     for (int i = 0; i < SubLoop; ++i) {
         std::vector<BinaryOperator *> WorkList;
@@ -65,6 +48,7 @@ PreservedAnalyses SubstitutionPass::run(Function &F, FunctionAnalysisManager &AM
         }
 
         for (auto *Bo: WorkList) {
+            (void)Uni;
             substitute(Bo);
             if (Bo->use_empty()) {
                 Bo->eraseFromParent();
@@ -78,10 +62,6 @@ PreservedAnalyses SubstitutionPass::run(Function &F, FunctionAnalysisManager &AM
     }
 
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
-}
-
-bool SubstitutionPass::isEnabled() {
-    return EnableSub;
 }
 
 void SubstitutionPass::substitute(BinaryOperator *Bo) {
@@ -112,8 +92,9 @@ void SubstitutionPass::substituteAdd(BinaryOperator *Bo) {
     Value *RHS = Bo->getOperand(1);
     Value *NewVal = nullptr;
 
+    Config &CfgRng = Config::get();
     std::uniform_int_distribution<int> Dist(0, 3);
-    int Choice = Dist(Gen);
+    int Choice = Dist(CfgRng.Rng);
 
     switch (Choice) {
         case 0: {
@@ -155,8 +136,9 @@ void SubstitutionPass::substituteSub(BinaryOperator *Bo) {
     Value *RHS = Bo->getOperand(1);
     Value *NewVal = nullptr;
 
+    Config &CfgRng = Config::get();
     std::uniform_int_distribution<int> Dist(0, 2);
-    int Choice = Dist(Gen);
+    int Choice = Dist(CfgRng.Rng);
 
     switch (Choice) {
         case 0: {
@@ -195,8 +177,9 @@ void SubstitutionPass::substituteAnd(BinaryOperator *Bo) {
     Value *RHS = Bo->getOperand(1);
     Value *NewVal = nullptr;
 
+    Config &CfgRng = Config::get();
     std::uniform_int_distribution<int> Dist(0, 1);
-    int Choice = Dist(Gen);
+    int Choice = Dist(CfgRng.Rng);
 
     switch (Choice) {
         case 0: {
@@ -225,8 +208,9 @@ void SubstitutionPass::substituteOr(BinaryOperator *Bo) {
     Value *RHS = Bo->getOperand(1);
     Value *NewVal = nullptr;
 
+    Config &CfgRng = Config::get();
     std::uniform_int_distribution<int> Dist(0, 1);
-    int Choice = Dist(Gen);
+    int Choice = Dist(CfgRng.Rng);
 
     switch (Choice) {
         case 0: {
@@ -255,8 +239,9 @@ void SubstitutionPass::substituteXor(BinaryOperator *Bo) {
     Value *RHS = Bo->getOperand(1);
     Value *NewVal = nullptr;
 
+    Config &CfgRng = Config::get();
     std::uniform_int_distribution<int> Dist(0, 1);
-    int Choice = Dist(Gen);
+    int Choice = Dist(CfgRng.Rng);
 
     switch (Choice) {
         case 0: {
