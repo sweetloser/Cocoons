@@ -38,6 +38,24 @@
 
 ---
 
+## Cocoons macOS App（MVP）
+
+仓库新增了面向最终产品形态的 [`CocoonsApp`](CocoonsApp/)：
+
+```text
+选择原始 Xcode 工程目录
+        ↓
+保护显式标记的 C / Objective-C 字符串
+        ↓
+在同级原子生成 {原工程名}_cocoons
+```
+
+原工程不会被修改；输出工程不依赖 Cocoons.app 常驻，可以直接用 Xcode 打开。当前 App
+是源到源处理 MVP，已有 LLVM Plugin 保留为研发与后续引擎选项。构建、测试与已知限制见
+[`CocoonsApp/README.md`](CocoonsApp/README.md)。
+
+---
+
 ## <a id="功能特性"></a> ✨ 功能特性
 
 - [x] **C/OC 字符串混淆 (String Obfuscation)**：
@@ -194,12 +212,19 @@ clang -fpass-plugin=./CocoonsPlugin/dist/libCocoonsPlugin.dylib -O2 -c main.m -o
 
 ### <a id="xcode-集成"></a> 1. Xcode 集成
 
-> 🧠 **原理**：Xcode `.xcconfig` 中的 `KEY = VALUE` **不是**环境变量，clang 子进程读不到。必须借助 Build Phases 中「Compile Sources」*之前*的 Run Script，在脚本里 `export COCOONS_*`；这样 xcodebuild 会把脚本 export 的变量透传给后续 clang 调用。  
-> 不想写脚本的团队：直接把 `.cocoons.json` 放 `$(SRCROOT)`（项目根目录），Config 单例会自动向上找，零脚本也能工作。
+> ⚠️ **先说结论**：Cocoons 插件是按 Homebrew `llvm@21` 构建的上游 LLVM Pass Plugin，**不建议直接用 Xcode 自带 Apple clang 加载**，因为 Pass Plugin ABI 不保证兼容，可能出现 `plugin API mismatch` 或直接崩溃。  
+> 推荐做法是：**让 Xcode 的 C / ObjC / C++ 编译显式切到 Homebrew `llvm@21` 的 `clang/clang++`**，再通过 `-fpass-plugin` 加载 [libCocoonsPlugin.dylib](file:///Users/sion/Documents/github/Cocoons/CocoonsPlugin/dist/libCocoonsPlugin.dylib)。
+>
+> 🧠 另外一个关键点：Xcode `.xcconfig` 中的 `KEY = VALUE` **不是**环境变量，clang 子进程读不到。必须借助 Build Phases 中「Compile Sources」之前的 Run Script，在脚本里 `export COCOONS_*`；这样 xcodebuild 才会把脚本 export 的变量透传给后续 clang 调用。  
+> 不想写脚本的团队：直接把 `.cocoons.json` 放 `$(SRCROOT)`（项目根目录），[Config](file:///Users/sion/Documents/github/Cocoons/CocoonsPlugin/include/cocoons/Config.h) 单例会自动向上找，零脚本也能工作。
 
 #### ✅ 方式一：xcconfig + 前置 Run Script（推荐，可 Debug/Release 差异化）
 
-1. 把 [cocoons.xcconfig](file:///Users/sion/Documents/github/Cocoons/CocoonsPlugin/tools/xcode-integration/cocoons.xcconfig) 拖进工程，选中 target，让它成为 `Release` 的 Base Configuration。文件内部只做一件事：`OTHER_CFLAGS = ... -fpass-plugin=...`（**没有任何 -mllvm**）。
+1. 把 [cocoons.xcconfig](file:///Users/sion/Documents/github/Cocoons/CocoonsPlugin/tools/xcode-integration/cocoons.xcconfig) 拖进工程，选中 target，让它成为 `Release` 的 Base Configuration。  
+   这个文件现在会同时做三件事：
+   - 把 `CC/CXX/LDPLUSPLUS` 切到 Homebrew `llvm@21`
+   - 在 `Release` 下通过 `-fpass-plugin=.../libCocoonsPlugin.dylib` 加载插件
+   - 给工程加 `-Wno-unknown-warning-option`，减少 Apple clang 专属 warning flag 迁移时的噪音
 2. 在 Target → Build Phases → 点 `+` → `New Run Script Phase`，把它**拖到 Compile Sources 上面**，命名为 `[Cocoons] Export Environment`，脚本内容：
 
 ```bash
@@ -217,14 +242,17 @@ fi
 ```
 
 > 如果团队共享同一套配置，**推荐删除上面整个脚本，改用 `.cocoons.json`**：把 [`.cocoons.example.json`](file:///Users/sion/Documents/github/Cocoons/.cocoons.example.json) 拷贝到 `$(SRCROOT)/.cocoons.json`（和 `.xcodeproj` 同目录），脚本全删掉也 OK。
+>
+> 如果你的机器不是 Apple Silicon，或者 `llvm@21` 不在默认路径 `/opt/homebrew/opt/llvm@21`，请直接修改 [cocoons.xcconfig](file:///Users/sion/Documents/github/Cocoons/CocoonsPlugin/tools/xcode-integration/cocoons.xcconfig) 里的 `COCOONS_LLVM_ROOT`。
 
 #### ✅ 方式二：CocoaPods Hook（多 Pod 工程）
 
-复制仓库根 [Podfile.cocoons.example.rb](file:///Users/sion/Documents/github/Cocoons/CocoonsPlugin/tools/xcode-integration/Podfile.cocoons.example.rb) 末尾的 `post_install` 块到你项目的 Podfile 里。它会自动做三件事：
+复制仓库根 [Podfile.cocoons.example.rb](file:///Users/sion/Documents/github/Cocoons/CocoonsPlugin/tools/xcode-integration/Podfile.cocoons.example.rb) 末尾的 `post_install` 块到你项目的 Podfile 里。它会自动做四件事：
 
-1. 在 `Pods/Target Support Files/Pods-<Target>/Cocoons-Environment.xcconfig` 里生成一份 shell 格式的 `export COCOONS_*=...` 列表（开关都写在 `COCOONS_SWITCHES` 字典里，一眼可改）。
-2. 给每一个 Pod 子 Pod target 在 Release 配置里注入 `OTHER_CFLAGS += -fpass-plugin=<path>`，Swift 混编工程同时注入 `-Xcc <same>`。
-3. 在每一个 target 的 Build Phases **最顶端**插入一个 `[Cocoons] Export Environment` 脚本，内容是 grep 上面生成的 xcconfig 然后 source 进去 export。
+1. 检查插件路径和 Homebrew `llvm@21` 是否存在；默认根目录是 `/opt/homebrew/opt/llvm@21`，也支持在执行 `pod install` 前通过 `COCOONS_LLVM_ROOT=/your/llvm@21/root` 覆盖。
+2. 在 `Pods/Target Support Files/Pods-<Target>/Cocoons-Environment.xcconfig` 里生成一份 shell 格式的 `export COCOONS_*=...` 列表（开关都写在 `COCOONS_SWITCHES` 字典里，一眼可改）。
+3. 给每一个 Pods target 显式写入 `CC/CXX/LDPLUSPLUS = <brew llvm@21>`，并在 Release 配置里注入 `OTHER_CFLAGS/OTHER_CPLUSPLUSFLAGS += -fpass-plugin=<path>`；Swift 混编工程同时注入 `-Xcc <same>`。
+4. 在每一个 target 的 Build Phases **最顶端**插入一个 `[Cocoons] Export Environment` 脚本，内容是 grep 上面生成的 xcconfig 然后 source 进去 export。
 
 ```ruby
 # 用法: 在你 Podfile 尾部追加

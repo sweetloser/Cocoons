@@ -1,33 +1,51 @@
 // ============================================================
 // Cocoons: Xcode xcconfig 接入示例 (v1.2.0+)
 // ------------------------------------------------------------
-// 用法：
-//   1) 在 Xcode -> Project/Target -> Build Settings ->
-//      "Based on Configuration File" 选择此文件
-//      或在 Podfile 中用 xcconfig 引用。
-//   2) 在 Targets → Build Phases → + New Run Script Phase，
-//      在 "Compile Sources" 之前插入脚本 (见 xcode-integration/README.md
-//      或 Podfile.cocoons.example.rb 中的脚本) 来 export COCOONS_*
-//      环境变量。
-//      * 不用 Run Script 也行：把 $(SRCROOT)/.cocoons.json 放到项目根
-//        目录（见 RELEASE_NOTE_CN.md 说明），Config 单例自动加载。
+// 重要：Cocoons 是按 Homebrew llvm@21 构建的 Out-of-Tree Pass Plugin。
+// Apple clang / Xcode 自带 clang 与上游 LLVM Pass Plugin ABI 不保证兼容，
+// 直接用 Apple clang 加载 dylib 可能报 plugin API mismatch，甚至崩溃。
 //
-// v1.2.0 变化 - 不再用 `-mllvm -cocoons-*`：
-//   -fpass-plugin 加载插件在 clang 解析 -mllvm 之后，此时 cl::opt 尚未
-//   注册，导致 -mllvm 选项报 "Unknown command line argument"。
-//   Cocoons 现在统一通过环境变量 (或 .cocoons.json) 传开关。
+// 推荐接入方式：
+//   1) 在 Xcode -> Project/Target -> Build Settings ->
+//      "Based on Configuration File" 选择此文件。
+//   2) 本文件会同时：
+//      - 强制 C / C++ / ObjC 编译使用 Homebrew llvm@21 clang
+//      - 在 Release 下通过 -fpass-plugin 加载 libCocoonsPlugin.dylib
+//   3) 在 Targets -> Build Phases -> + New Run Script Phase，
+//      在 "Compile Sources" 之前插入脚本（见 Podfile.cocoons.example.rb
+//      或 README）来 export COCOONS_* 环境变量。
+//      * 不用 Run Script 也行：把 $(SRCROOT)/.cocoons.json 放到项目根目录，
+//        Config 单例会自动向上查找加载。
+//
+// v1.2.0 起不再使用 `-mllvm -cocoons-*`：
+//   -fpass-plugin 加载插件发生在 clang 解析 -mllvm 之后，
+//   此时 cl::opt 尚未注册，旧参数路径会报 Unknown command line argument。
+//   现在统一通过环境变量或 .cocoons.json 传开关。
 // ============================================================
+
+// 请根据实际 Homebrew llvm@21 安装位置修改（Apple Silicon 默认 /opt/homebrew）
+COCOONS_LLVM_ROOT = /opt/homebrew/opt/llvm@21
 
 // 请根据实际 CocoonsPlugin 路径修改
 COCOONS_PLUGIN_DIR = $(SRCROOT)/CocoonsPlugin/dist
 
-// Release 默认开所有混淆 (env var COCOONS_* 在 Run Script 中设)；
+// 强制 Xcode C-family 编译走与插件完全同版本的 brew clang，避免 ABI mismatch
+CC = $(COCOONS_LLVM_ROOT)/bin/clang
+CXX = $(COCOONS_LLVM_ROOT)/bin/clang++
+LDPLUSPLUS = $(COCOONS_LLVM_ROOT)/bin/clang++
+
+// 有些工程继承了 Apple clang 专属 warning 开关，brew clang 可能不认识。
+// 保留这个兜底能减少迁移时的噪音。
+WARNING_CFLAGS = $(inherited) -Wno-unknown-warning-option
+
+// Release 默认开所有混淆（具体 COCOONS_* 在 Run Script 或 .cocoons.json 中设）；
 // Debug 不开，加速编译。
 COCOONS_PLUGIN_FLAGS_RELEASE = -fpass-plugin=$(COCOONS_PLUGIN_DIR)/libCocoonsPlugin.dylib
 COCOONS_PLUGIN_FLAGS_DEBUG   =
 
-// 拼接到 OTHER_CFLAGS（注意 $(inherited) 放在最前，避免覆盖工程原有配置）
+// C / ObjC / C++ 代码路径
 OTHER_CFLAGS = $(inherited) $(COCOONS_PLUGIN_FLAGS_$(CONFIGURATION))
+OTHER_CPLUSPLUSFLAGS = $(inherited) $(COCOONS_PLUGIN_FLAGS_$(CONFIGURATION))
 
 // Swift 混编时，需要通过 -Xcc 把 -fpass-plugin 传给 clang importer
 OTHER_SWIFT_FLAGS = $(inherited) \

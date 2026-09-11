@@ -7,6 +7,8 @@
 #   - 改用 **环境变量 COCOONS_*** 或 `.cocoons.json`**。
 #   - 本示例通过 pod install 后写入 "Cocoons-Environment.xcconfig"
 #     + Build Phases 前置 Shell Script 的方式传 env var。
+#   - 另外会把 Pods 工程的 C / C++ / ObjC 编译器切到 Homebrew llvm@21，
+#     避免 Apple clang 加载上游 LLVM Pass Plugin 时发生 ABI mismatch。
 # ============================================================
 
 platform :ios, '13.0'
@@ -19,6 +21,7 @@ end
 
 # ---------- Cocoons 接入 hook 开始 ----------
 COCOONS_PLUGIN_PATH = File.expand_path('../CocoonsPlugin/dist/libCocoonsPlugin.dylib', __dir__)
+COCOONS_LLVM_ROOT = ENV.fetch('COCOONS_LLVM_ROOT', '/opt/homebrew/opt/llvm@21')
 
 COCOONS_SWITCHES = {
   # '1' / true  = 开启
@@ -41,6 +44,8 @@ COCOONS_ENABLE_FOR = {
 }
 
 PASS_PLUGIN_FLAG = "-fpass-plugin=#{COCOONS_PLUGIN_PATH}"
+BREW_CLANG = File.join(COCOONS_LLVM_ROOT, 'bin', 'clang')
+BREW_CLANGXX = File.join(COCOONS_LLVM_ROOT, 'bin', 'clang++')
 
 post_install do |installer|
   unless File.exist?(COCOONS_PLUGIN_PATH)
@@ -49,8 +54,15 @@ post_install do |installer|
     puts "  cmake --build CocoonsPlugin/build"
     return
   end
+  unless File.exist?(BREW_CLANG) && File.exist?(BREW_CLANGXX)
+    puts "[Cocoons] ⚠️  找不到 Homebrew llvm@21: #{COCOONS_LLVM_ROOT}"
+    puts "  请先执行: brew install llvm@21"
+    puts "  或在执行 pod install 前设置 COCOONS_LLVM_ROOT=/your/llvm@21/root"
+    return
+  end
   puts "[Cocoons] ✅ pod post_install 注入开始..."
   puts "  插件:       #{COCOONS_PLUGIN_PATH}"
+  puts "  llvm@21:    #{COCOONS_LLVM_ROOT}"
   puts "  开关:       #{COCOONS_SWITCHES.inspect}"
   puts "  开关注入 配置: #{COCOONS_ENABLE_FOR.inspect}"
 
@@ -87,10 +99,25 @@ post_install do |installer|
     target.build_configurations.each do |config|
       enabled = COCOONS_ENABLE_FOR.fetch(config.name, false)
 
+      # --- 0. 统一使用与插件匹配的 brew clang，避免 Apple clang ABI 不兼容 ---
+      config.build_settings['CC'] = BREW_CLANG
+      config.build_settings['CXX'] = BREW_CLANGXX
+      config.build_settings['LDPLUSPLUS'] = BREW_CLANGXX
+
+      warning_cflags = config.build_settings['WARNING_CFLAGS'] || '$(inherited)'
+      unless warning_cflags.include?('-Wno-unknown-warning-option')
+        config.build_settings['WARNING_CFLAGS'] = "#{warning_cflags} -Wno-unknown-warning-option"
+      end
+
       # --- a. OTHER_CFLAGS (C/ObjC/C++ 代码) ---
       current_cflags = config.build_settings['OTHER_CFLAGS'] || '$(inherited)'
       if enabled && !current_cflags.include?('-fpass-plugin=')
         config.build_settings['OTHER_CFLAGS'] = "#{current_cflags} #{PASS_PLUGIN_FLAG}"
+      end
+
+      current_cxxflags = config.build_settings['OTHER_CPLUSPLUSFLAGS'] || '$(inherited)'
+      if enabled && !current_cxxflags.include?('-fpass-plugin=')
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = "#{current_cxxflags} #{PASS_PLUGIN_FLAG}"
       end
 
       # --- b. OTHER_SWIFT_FLAGS (Swift 混编) ---

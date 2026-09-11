@@ -1,0 +1,46 @@
+name: Cocoons
+options:
+  bundleIdPrefix: com.cocoons
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  Cocoons:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/App
+      - Sources/Core
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cocoons.app
+        PRODUCT_NAME: Cocoons
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Cocoons
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        ENABLE_HARDENED_RUNTIME: YES
+  CocoonsTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+    dependencies:
+      - target: Cocoons
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cocoons.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Cocoons:
+    build:
+      targets:
+        Cocoons: all
+        CocoonsTests: [test]
+    test:
+      targets:
+        - CocoonsTests

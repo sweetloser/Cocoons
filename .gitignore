@@ -37,6 +37,7 @@ docs/
 # CocoonsPlugin 本地构建产物（dist/ 用于打包发布，但默认忽略，需要时手动 git add -f）
 CocoonsPlugin/dist/
 CocoonsPlugin/build/
+CocoonsApp/.derivedData/
 
 #==============================================================================#
 # Explicit files to ignore (only matches one).
